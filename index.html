@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simulación profesional: banda transportadora y rampa</title>
+  <style>
+    :root{
+      --bg:#dbe6ef;
+      --panel:#f7f7f8;
+      --card:#ffffff;
+      --text:#1f2937;
+      --muted:#5b6b7d;
+      --accent:#0f8ec7;
+      --accent-dark:#0a6a95;
+      --steel:#95b6c8;
+      --steel-dark:#5f879d;
+      --belt:#c8d7e2;
+      --belt-edge:#0f4f87;
+      --ramp:#7ea7bb;
+      --ground:#c7d6df;
+      --box:#efc173;
+      --box-edge:#b97c15;
+      --shadow:0 10px 25px rgba(0,0,0,.12);
+      --radius:22px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      height:100%;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:linear-gradient(180deg,#d5dee7 0%, #dfe8ef 100%);
+    }
+
+    .app{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:18px;
+      height:100vh;
+      padding:22px;
+    }
+
+    .sidebar{
+      background:rgba(255,255,255,.35);
+      border:1px solid rgba(255,255,255,.5);
+      backdrop-filter: blur(8px);
+      border-radius:28px;
+      padding:20px 18px;
+      box-shadow:var(--shadow);
+      overflow:auto;
+    }
+
+    .sidebar h1{
+      margin:4px 0 8px;
+      font-size:26px;
+      line-height:1.15;
+    }
+
+    .sidebar p{
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.45;
+      margin:0 0 18px;
+    }
+
+    .card{
+      background:rgba(255,255,255,.78);
+      border-radius:22px;
+      padding:16px;
+      box-shadow:var(--shadow);
+      margin-bottom:16px;
+      border:1px solid rgba(255,255,255,.6);
+    }
+
+    .card h2{
+      margin:0 0 14px;
+      font-size:16px;
+    }
+
+    .control{
+      margin-bottom:16px;
+    }
+
+    .control .top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:8px;
+      align-items:flex-end;
+    }
+
+    .control label{
+      font-size:15px;
+      font-weight:600;
+      display:block;
+    }
+
+    .control .value{
+      color:var(--accent);
+      font-weight:800;
+      font-size:15px;
+      white-space:nowrap;
+    }
+
+    input[type="range"]{
+      width:100%;
+      accent-color:var(--accent);
+      cursor:pointer;
+    }
+
+    .buttons{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:4px;
+    }
+
+    button{
+      border:none;
+      border-radius:16px;
+      padding:12px 14px;
+      font-size:14px;
+      font-weight:800;
+      cursor:pointer;
+      transition:transform .15s ease, opacity .15s ease;
+    }
+
+    button:hover{ transform:translateY(-1px); }
+    button.primary{
+      background:linear-gradient(180deg,var(--accent),var(--accent-dark));
+      color:white;
+    }
+    button.secondary{
+      background:#e8eef3;
+      color:var(--text);
+    }
+
+    .results{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .metric{
+      background:#f3f7fa;
+      border-radius:16px;
+      padding:12px;
+      border:1px solid #e4edf3;
+    }
+
+    .metric .k{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+
+    .metric .v{
+      font-size:20px;
+      font-weight:900;
+      color:var(--accent-dark);
+    }
+
+    .scene-wrap{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      min-width:0;
+    }
+
+    .hero{
+      background:rgba(255,255,255,.7);
+      border-radius:24px;
+      padding:16px 18px 12px;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.65);
+    }
+
+    .hero h2{
+      margin:0 0 4px;
+      font-size:20px;
+      line-height:1.2;
+    }
+
+    .hero p{
+      margin:0;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.4;
+    }
+
+    .canvas-card{
+      position:relative;
+      flex:1;
+      min-height:520px;
+      background:linear-gradient(180deg,#dce7ef 0%, #d7e1e9 100%);
+      border-radius:28px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.6);
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    .badge{
+      position:absolute;
+      left:18px;
+      bottom:18px;
+      background:rgba(255,255,255,.84);
+      border:1px solid rgba(255,255,255,.7);
+      box-shadow:var(--shadow);
+      border-radius:16px;
+      padding:10px 12px;
+      font-size:13px;
+      color:var(--muted);
+      backdrop-filter: blur(6px);
+    }
+
+    @media (max-width: 1100px){
+      .app{
+        grid-template-columns:1fr;
+        height:auto;
+      }
+      .canvas-card{
+        min-height:580px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>Simulación de cajas sobre banda y rampa</h1>
+      <p>
+        Modelo visual y físico del sistema. La caja sale de la banda en A con velocidad
+        <strong>v₀</strong>, se desliza por la pendiente con fricción y finalmente abandona
+        la rampa en B con la velocidad especificada.
+      </p>
+
+      <div class="card">
+        <h2>Parámetros físicos</h2>
+
+        <div class="control">
+          <div class="top">
+            <label for="mu">Coeficiente de fricción cinética, μk</label>
+            <div class="value" id="muVal">0.40</div>
+          </div>
+          <input type="range" id="mu" min="0" max="1" step="0.01" value="0.40">
+        </div>
+
+        <div class="control">
+          <div class="top">
+            <label for="angle">Ángulo de la rampa (grados)</label>
+            <div class="value" id="angleVal">15°</div>
+          </div>
+          <input type="range" id="angle" min="5" max="35" step="1" value="15">
+        </div>
+
+        <div class="control">
+          <div class="top">
+            <label for="length">Longitud de la rampa (ft)</label>
+            <div class="value" id="lengthVal">20 ft</div>
+          </div>
+          <input type="range" id="length" min="8" max="40" step="1" value="20">
+        </div>
+
+        <div class="control">
+          <div class="top">
+            <label for="vB">Velocidad de salida en B (ft/s)</label>
+            <div class="value" id="vBVal">8.00 ft/s</div>
+          </div>
+          <input type="range" id="vB" min="2" max="20" step="0.1" value="8">
+        </div>
+
+        <div class="control">
+          <div class="top">
+            <label for="g">Gravedad (m/s²)</label>
+            <div class="value" id="gVal">9.78 m/s²</div>
+          </div>
+          <input type="range" id="g" min="9.50" max="9.90" step="0.01" value="9.78">
+        </div>
+
+        <div class="buttons">
+          <button class="primary" id="playPauseBtn">Pausar</button>
+          <button class="secondary" id="resetBtn">Reiniciar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Resultados automáticos</h2>
+        <div class="results">
+          <div class="metric">
+            <div class="k">Velocidad en A, v₀</div>
+            <div class="v" id="v0Result">15.09 ft/s</div>
+          </div>
+          <div class="metric">
+            <div class="k">Gravedad convertida</div>
+            <div class="v" id="gFtResult">32.09 ft/s²</div>
+          </div>
+          <div class="metric">
+            <div class="k">Aceleración en rampa</div>
+            <div class="v" id="aResult">-4.09 ft/s²</div>
+          </div>
+          <div class="metric">
+            <div class="k">Estado físico</div>
+            <div class="v" id="stateResult">Válido</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="scene-wrap">
+      <div class="hero">
+        <h2>Representación dinámica del problema de banda transportadora y rampa inclinada</h2>
+        <p>
+          La animación muestra cajas avanzando sobre la banda inclinada hasta A.
+          Después, cada caja pasa a la rampa fija, se desliza con fricción a lo largo de 20 ft
+          y abandona el extremo B con la velocidad objetivo.
+        </p>
+      </div>
+
+      <div class="canvas-card">
+        <canvas id="scene"></canvas>
+        <div class="badge" id="liveInfo">
+          t = 0.00 s · simulación activa
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("scene");
+    const ctx = canvas.getContext("2d");
+
+    const controls = {
+      mu: document.getElementById("mu"),
+      angle: document.getElementById("angle"),
+      length: document.getElementById("length"),
+      vB: document.getElementById("vB"),
+      g: document.getElementById("g")
+    };
+
+    const labels = {
+      mu: document.getElementById("muVal"),
+      angle: document.getElementById("angleVal"),
+      length: document.getElementById("lengthVal"),
+      vB: document.getElementById("vBVal"),
+      g: document.getElementById("gVal")
+    };
+
+    const outputs = {
+      v0: document.getElementById("v0Result"),
+      gFt: document.getElementById("gFtResult"),
+      a: document.getElementById("aResult"),
+      state: document.getElementById("stateResult"),
+      live: document.getElementById("liveInfo")
+    };
+
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let W = 1200;
+    let H = 700;
+    let running = true;
+    let time = 0;
+    let lastTime = performance.now();
+
+    const SCALE = 18;
+    const beltBoxes = [];
+    const slideBoxes = [];
+    const fallBoxes = [];
+    const spawnInterval = 1.2;
+    let spawnAccumulator = 0;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      W = rect.width;
+      H = rect.height;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function getParams() {
+      const mu = parseFloat(controls.mu.value);
+      const angleDeg = parseFloat(controls.angle.value);
+      const angle = angleDeg * Math.PI / 180;
+      const lengthFt = parseFloat(controls.length.value);
+      const vB = parseFloat(controls.vB.value);
+      const gMS = parseFloat(controls.g.value);
+      const gFt = gMS * 3.28084;
+
+      const delta = 2 * gFt * lengthFt * (mu * Math.cos(angle) - Math.sin(angle));
+      const v0sq = vB * vB + delta;
+      const valid = v0sq > 0;
+      const v0 = valid ? Math.sqrt(v0sq) : 0;
+
+      const a = gFt * (Math.sin(angle) - mu * Math.cos(angle));
+
+      return {
+        mu, angleDeg, angle, lengthFt, vB, gMS, gFt, v0, a, valid
+      };
+    }
+
+    function updateLabels() {
+      const p = getParams();
+      labels.mu.textContent = p.mu.toFixed(2);
+      labels.angle.textContent = `${p.angleDeg.toFixed(0)}°`;
+      labels.length.textContent = `${p.lengthFt.toFixed(0)} ft`;
+      labels.vB.textContent = `${p.vB.toFixed(2)} ft/s`;
+      labels.g.textContent = `${p.gMS.toFixed(2)} m/s²`;
+
+      outputs.v0.textContent = `${p.v0.toFixed(2)} ft/s`;
+      outputs.gFt.textContent = `${p.gFt.toFixed(2)} ft/s²`;
+      outputs.a.textContent = `${p.a.toFixed(2)} ft/s²`;
+      outputs.state.textContent = p.valid ? "Válido" : "No válido";
+      outputs.state.style.color = p.valid ? "#0a6a95" : "#c0392b";
+    }
+
+    Object.values(controls).forEach(input => {
+      input.addEventListener("input", () => {
+        updateLabels();
+      });
+    });
+
+    playPauseBtn.addEventListener("click", () => {
+      running = !running;
+      playPauseBtn.textContent = running ? "Pausar" : "Reanudar";
+      lastTime = performance.now();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      beltBoxes.length = 0;
+      slideBoxes.length = 0;
+      fallBoxes.length = 0;
+      spawnAccumulator = 0;
+      time = 0;
+      seedBoxes();
+    });
+
+    function vec(x, y) { return {x, y}; }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function getGeometry() {
+      const p = getParams();
+
+      const rampStart = vec(W * 0.58, H * 0.54);
+      const rampDir = vec(-Math.cos(p.angle), Math.sin(p.angle));
+      const rampEnd = vec(
+        rampStart.x + rampDir.x * p.lengthFt * SCALE,
+        rampStart.y + rampDir.y * p.lengthFt * SCALE
+      );
+
+      const beltStart = vec(rampStart.x + 26, rampStart.y - 2);
+      const beltLenPx = Math.min(360, W * 0.28);
+      const beltEnd = vec(
+        beltStart.x + Math.cos(p.angle) * beltLenPx,
+        beltStart.y - Math.sin(p.angle) * beltLenPx
+      );
+
+      return { p, rampStart, rampEnd, rampDir, beltStart, beltEnd, beltLenPx };
+    }
+
+    function seedBoxes() {
+      const { beltLenPx } = getGeometry();
+
+      for (let i = 0; i < 4; i++) {
+        beltBoxes.push({
+          s: i * (beltLenPx * 0.27),
+          wobble: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    function spawnBox() {
+      beltBoxes.push({
+        s: 0,
+        wobble: Math.random() * Math.PI * 2
+      });
+    }
+
+    function beltPoint(s, geom) {
+      const t = Math.max(0, Math.min(1, s / geom.beltLenPx));
+      return {
+        x: lerp(geom.beltEnd.x, geom.beltStart.x, t),
+        y: lerp(geom.beltEnd.y, geom.beltStart.y, t)
+      };
+    }
+
+    function rampPoint(distFt, geom) {
+      return {
+        x: geom.rampStart.x + geom.rampDir.x * distFt * SCALE,
+        y: geom.rampStart.y + geom.rampDir.y * distFt * SCALE
+      };
+    }
+
+    function drawRoundedRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function drawBox(x, y, angle = 0, scale = 1) {
+      const w = 52 * scale;
+      const h = 40 * scale;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      ctx.shadowColor = "rgba(0,0,0,0.18)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 5;
+
+      drawRoundedRect(-w/2, -h/2, w, h, 8);
+      const grad = ctx.createLinearGradient(-w/2, -h/2, w/2, h/2);
+      grad.addColorStop(0, "#f6d08b");
+      grad.addColorStop(1, "#e7b562");
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = "#bc841d";
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(105,86,34,0.7)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -h/2 + 5);
+      ctx.lineTo(0, h/2 - 5);
+      ctx.moveTo(-w/2 + 5, 0);
+      ctx.lineTo(w/2 - 5, 0);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-w/2 + 6, -h/2 + 7);
+      ctx.lineTo(w/2 - 8, -h/2 + 7);
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawWheel(x, y, r) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      const g1 = ctx.createRadialGradient(-r*0.2, -r*0.2, r*0.15, 0, 0, r);
+      g1.addColorStop(0, "#ffffff");
+      g1.addColorStop(0.35, "#dbe8f0");
+      g1.addColorStop(0.75, "#8ca8ba");
+      g1.addColorStop(1, "#56798f");
+      ctx.fillStyle = g1;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, r*0.6, 0, Math.PI * 2);
+      ctx.fillStyle = "#f7fbfd";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, r*0.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#6f8594";
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawBelt(geom) {
+      const angle = -geom.p.angle;
+      const cx = (geom.beltStart.x + geom.beltEnd.x) / 2;
+      const cy = (geom.beltStart.y + geom.beltEnd.y) / 2;
+      const len = geom.beltLenPx;
+      const h = 52;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+
+      drawRoundedRect(-len/2, -h/2, len, h, 18);
+      const baseGrad = ctx.createLinearGradient(0, -h/2, 0, h/2);
+      baseGrad.addColorStop(0, "#cbdbe5");
+      baseGrad.addColorStop(0.5, "#aac3d0");
+      baseGrad.addColorStop(1, "#8eb0c2");
+      ctx.fillStyle = baseGrad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-len/2, -h/2 + 8);
+      ctx.lineTo(len/2, -h/2 + 8);
+      ctx.lineTo(len/2, -h/2 + 15);
+      ctx.lineTo(-len/2, -h/2 + 15);
+      ctx.closePath();
+      ctx.fillStyle = "#0d4d82";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-len/2, h/2 - 15);
+      ctx.lineTo(len/2, h/2 - 15);
+      ctx.lineTo(len/2, h/2 - 8);
+      ctx.lineTo(-len/2, h/2 - 8);
+      ctx.closePath();
+      ctx.fillStyle = "#0d4d82";
+      ctx.fill();
+
+      drawRoundedRect(-len/2, -h/2 + 15, len, h - 30, 12);
+      const midGrad = ctx.createLinearGradient(0, -h/2, 0, h/2);
+      midGrad.addColorStop(0, "#dce7ee");
+      midGrad.addColorStop(0.5, "#b8cdda");
+      midGrad.addColorStop(1, "#a0bccb");
+      ctx.fillStyle = midGrad;
+      ctx.fill();
+
+      ctx.restore();
+
+      const wheelCount = 4;
+      for (let i = 0; i < wheelCount; i++) {
+        const t = i / (wheelCount - 1);
+        const x = lerp(geom.beltEnd.x + 8, geom.beltStart.x - 8, t);
+        const y = lerp(geom.beltEnd.y + 18, geom.beltStart.y + 18, t);
+        drawWheel(x, y, 23);
+      }
+    }
+
+    function drawRamp(geom) {
+      const thickness = 36;
+      const nx = -Math.sin(geom.p.angle);
+      const ny = -Math.cos(geom.p.angle);
+
+      const p1 = {
+        x: geom.rampStart.x + nx * thickness / 2,
+        y: geom.rampStart.y + ny * thickness / 2
+      };
+      const p2 = {
+        x: geom.rampEnd.x + nx * thickness / 2,
+        y: geom.rampEnd.y + ny * thickness / 2
+      };
+      const p3 = {
+        x: geom.rampEnd.x - nx * thickness / 2,
+        y: geom.rampEnd.y - ny * thickness / 2
+      };
+      const p4 = {
+        x: geom.rampStart.x - nx * thickness / 2,
+        y: geom.rampStart.y - ny * thickness / 2
+      };
+
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.14)";
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 10;
+
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.lineTo(p4.x, p4.y);
+      ctx.closePath();
+
+      const rg = ctx.createLinearGradient(p1.x, p1.y, p4.x, p4.y);
+      rg.addColorStop(0, "#91b4c4");
+      rg.addColorStop(1, "#6f95a8");
+      ctx.fillStyle = rg;
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#60849a";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(
+        geom.rampStart.x - Math.sin(geom.p.angle) * (thickness/2 - 5),
+        geom.rampStart.y - Math.cos(geom.p.angle) * (thickness/2 - 5)
+      );
+      ctx.lineTo(
+        geom.rampEnd.x - Math.sin(geom.p.angle) * (thickness/2 - 5),
+        geom.rampEnd.y - Math.cos(geom.p.angle) * (thickness/2 - 5)
+      );
+      ctx.strokeStyle = "#d9ebf4";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#1a1a1a";
+      ctx.font = "italic 700 24px Georgia, serif";
+      ctx.fillText("A", geom.rampStart.x + 6, geom.rampStart.y - 14);
+      ctx.fillText("B", geom.rampEnd.x - 26, geom.rampEnd.y + 8);
+
+      const midx = (geom.rampStart.x + geom.rampEnd.x) / 2;
+      const midy = (geom.rampStart.y + geom.rampEnd.y) / 2;
+      const ox = -Math.sin(geom.p.angle) * 70;
+      const oy = -Math.cos(geom.p.angle) * 70;
+
+      const a1 = { x: geom.rampStart.x + ox, y: geom.rampStart.y + oy };
+      const a2 = { x: geom.rampEnd.x + ox, y: geom.rampEnd.y + oy };
+
+      ctx.strokeStyle = "#2b2b2b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(a1.x, a1.y);
+      ctx.lineTo(a2.x, a2.y);
+      ctx.stroke();
+
+      const arrowSize = 10;
+      function arrow(x, y, ang) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - arrowSize * Math.cos(ang - 0.35), y - arrowSize * Math.sin(ang - 0.35));
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - arrowSize * Math.cos(ang + 0.35), y - arrowSize * Math.sin(ang + 0.35));
+        ctx.stroke();
+      }
+      arrow(a1.x, a1.y, Math.PI - geom.p.angle);
+      arrow(a2.x, a2.y, -geom.p.angle);
+
+      ctx.fillStyle = "#111";
+      ctx.font = "700 22px Georgia, serif";
+      ctx.fillText(`${geom.p.lengthFt.toFixed(0)} ft`, midx + ox - 24, midy + oy - 8);
+
+      const baseX = geom.rampEnd.x + 34;
+      const baseY = geom.rampEnd.y + 18;
+      ctx.strokeStyle = "#2b2b2b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(baseX, baseY);
+      ctx.lineTo(baseX + 72, baseY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(baseX, baseY, 38, 0, -geom.p.angle, true);
+      ctx.stroke();
+
+      ctx.fillStyle = "#111";
+      ctx.font = "700 20px Georgia, serif";
+      ctx.fillText(`${geom.p.angleDeg.toFixed(0)}°`, baseX + 43, baseY - 12);
+      ctx.restore();
+    }
+
+    function drawVelocityArrow(geom) {
+      const tip = {
+        x: geom.beltStart.x + 95,
+        y: geom.beltStart.y - 55
+      };
+      const len = 82;
+      const ang = Math.PI - geom.p.angle;
+
+      const x2 = tip.x + len * Math.cos(ang);
+      const y2 = tip.y + len * Math.sin(ang);
+
+      ctx.save();
+      ctx.strokeStyle = "#0ea38c";
+      ctx.fillStyle = "#0ea38c";
+      ctx.lineWidth = 6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(tip.x, tip.y);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      const ah = 14;
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - ah * Math.cos(ang - 0.45), y2 - ah * Math.sin(ang - 0.45));
+      ctx.lineTo(x2 - ah * Math.cos(ang + 0.45), y2 - ah * Math.sin(ang + 0.45));
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#0a917d";
+      ctx.font = "italic 700 24px Georgia, serif";
+      ctx.fillText("v₀", tip.x + 8, tip.y - 10);
+      ctx.restore();
+    }
+
+    function updateSimulation(dt) {
+      if (!running) return;
+
+      const geom = getGeometry();
+      const p = geom.p;
+
+      time += dt;
+      spawnAccumulator += dt;
+
+      if (spawnAccumulator >= spawnInterval) {
+        spawnAccumulator = 0;
+        spawnBox();
+      }
+
+      const speedPx = p.v0 * SCALE;
+      for (let i = beltBoxes.length - 1; i >= 0; i--) {
+        const box = beltBoxes[i];
+        box.s += speedPx * dt;
+
+        if (box.s >= geom.beltLenPx) {
+          beltBoxes.splice(i, 1);
+          slideBoxes.push({
+            sFt: 0,
+            v: p.v0
+          });
+        }
+      }
+
+      for (let i = slideBoxes.length - 1; i >= 0; i--) {
+        const box = slideBoxes[i];
+        box.v += p.a * dt;
+        if (box.v < 0) box.v = 0;
+        box.sFt += box.v * dt;
+
+        if (box.sFt >= p.lengthFt) {
+          slideBoxes.splice(i, 1);
+          const end = rampPoint(p.lengthFt, geom);
+          fallBoxes.push({
+            x: end.x,
+            y: end.y,
+            vx: p.vB * Math.cos(p.angle),
+            vy: p.vB * Math.sin(p.angle),
+            rot: 0,
+            vr: 2 + Math.random() * 1.8
+          });
+        }
+      }
+
+      const gFall = p.gFt * 0.42;
+      for (let i = fallBoxes.length - 1; i >= 0; i--) {
+        const box = fallBoxes[i];
+        box.x += box.vx * SCALE * dt;
+        box.y += box.vy * SCALE * dt;
+        box.vy += gFall * dt;
+        box.rot += box.vr * dt;
+
+        if (box.y > H + 120 || box.x < -120 || box.x > W + 120) {
+          fallBoxes.splice(i, 1);
+        }
+      }
+
+      outputs.live.textContent = `t = ${time.toFixed(2)} s · ${running ? "simulación activa" : "pausada"}`;
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, "#dce7ef");
+      sky.addColorStop(1, "#d3dee6");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+
+      const groundY = H * 0.82;
+      ctx.fillStyle = "#cfdae2";
+      ctx.fillRect(0, groundY, W, H - groundY);
+
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(W, groundY);
+      ctx.stroke();
+    }
+
+    function render() {
+      drawBackground();
+      const geom = getGeometry();
+
+      drawRamp(geom);
+      drawBelt(geom);
+      drawVelocityArrow(geom);
+
+      ctx.save();
+      ctx.fillStyle = "#13334a";
+      ctx.beginPath();
+      ctx.arc(geom.rampStart.x, geom.rampStart.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(geom.rampEnd.x, geom.rampEnd.y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      for (const box of beltBoxes) {
+        const pt = beltPoint(box.s, geom);
+        drawBox(pt.x, pt.y - 24 + Math.sin(time * 4 + box.wobble) * 0.7, -geom.p.angle, 1);
+      }
+
+      for (const box of slideBoxes) {
+        const pt = rampPoint(box.sFt, geom);
+        drawBox(pt.x, pt.y - 18, -geom.p.angle, 1);
+      }
+
+      for (const box of fallBoxes) {
+        drawBox(box.x, box.y, box.rot, 1);
+      }
+    }
+
+    function loop(now) {
+      const dt = Math.min(0.033, (now - lastTime) / 1000);
+      lastTime = now;
+
+      updateSimulation(dt);
+      render();
+
+      requestAnimationFrame(loop);
+    }
+
+    updateLabels();
+    seedBoxes();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
